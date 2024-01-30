@@ -1,10 +1,19 @@
 #include <LiquidCrystal_I2C.h>
+using namespace std;
 
 unsigned int buttonPins[4] = {12, 13, 10, 11};
 unsigned int buttonHeld[4] = {0, 0, 0, 0};
 bool buttonPressed[4];
 
 int buzzerPin = 6;
+int d = 25;
+
+int fase = 0;
+int dag = 0;
+int aktivitet = 0;
+int reps = 0;
+
+String days[7] = {"Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Loerdag", "Soendag"};
 
 // RIGHT_ARROW 0
 // LEFT_ARROW 1
@@ -75,26 +84,7 @@ byte characters[6][8] = {
   0b00000
 }};
 
-class Display {
-  private:
-  
-
-  public: 
-    Display(LiquidCrystal_I2C lcd) {
-    lcd.init();
-    lcd.clear();
-    lcd.backlight();
-    lcd.noBlink();
-    lcd.noCursor();
-    lcd.setCursor(0, 0);
-
-    for(int i = 0; i < 6; i++) {
-      lcd.createChar(i, characters[i]);
-      lcd.setCursor(i + 1, 0);      
-      lcd.write(i);
-    }
-  }
-};
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 void setup() {
   Serial.begin(9600);
@@ -105,11 +95,30 @@ void setup() {
   }
   pinMode(buzzerPin, OUTPUT);
 
-  LiquidCrystal_I2C lcd(0x27, 16, 2);
-  Display dis(lcd);
+  lcd.init();
+  lcd.clear();
+  lcd.backlight();
+
+  String lines[2] = {
+    "Velkommen til",
+    "Sundhedsskaermen"
+  };
+
+  for(int i = 0; i <= 16 + max(lines[0].length(), lines[1].length()); i++) {
+    lcd.clear();
+    lcd.setCursor(i > lines[0].length() ? i - lines[0].length() : 0, 0);
+    lcd.print(lines[0].substring(i > lines[0].length() ? 0 : lines[0].length() - i));
+
+    lcd.setCursor(i <= 16 ? 16 - i : 0, 1);
+    lcd.print(i - 16 < (int)lines[1].length() ? lines[1].substring(i <= 16 ? 0 : i - 16) : "");
+    delay(d * 10);
+  }
 }
 
 void loop() {
+  Beginning:
+  delay(d);
+  lcd.clear();
   // Get button inputs:
   for(int i = 0; i < 4; i++) {
     buttonPressed[i] = false;
@@ -118,6 +127,28 @@ void loop() {
       buttonHeld[i] = 1;
     } else if(digitalRead(buttonPins[i]) == 1) buttonHeld[i] = 0;
   }
+  switch(fase) {
+    case 0: goto Dag;
+    case 1: goto Aktivitet;
+    case 2: goto Rep;
+  }
 
-  delay(500);
+  Dag:
+  lcd.setCursor(0, 0);
+  lcd.print(days[dag]);
+
+  if(buttonPressed[0]) dag = dag == 6 ? 0 : dag + 1;
+  else if(buttonPressed[1]) dag = dag == 0 ? 6 : dag - 1;
+  else if(buttonPressed[2]) fase = 1;
+
+  goto Beginning;
+  Aktivitet:
+
+  if(buttonPressed[0]) dag = dag == 6 ? 0 : dag + 1;
+  else if(buttonPressed[1]) dag = dag == 0 ? 6 : dag - 1;
+  else if(buttonPressed[2]) fase = 2;
+  else if(buttonPressed[3]) fase = 0;
+
+  goto Beginning;
+  Rep:;
 }
